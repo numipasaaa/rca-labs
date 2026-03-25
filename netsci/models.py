@@ -83,6 +83,31 @@ def barabasi_albert(n, m, seed=SEED):
     return nx.barabasi_albert_graph(n, m, seed=seed)
 
 
+def holme_kim(n, m, p_triangle=0.5, seed=SEED):
+    """Generate a Holme-Kim power-law cluster graph.
+
+    Extends the Barabási-Albert model by adding a "triad formation" step:
+    after each preferential-attachment edge, with probability *p_triangle*
+    a second edge is added to a neighbor of the target, closing a triangle.
+
+    Parameters
+    ----------
+    n : int
+        Number of nodes.
+    m : int
+        Number of edges to attach from a new node to existing nodes.
+    p_triangle : float, default 0.5
+        Probability of adding a triangle after each PA edge.
+    seed : int, default ``SEED``
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    nx.Graph
+    """
+    return nx.powerlaw_cluster_graph(n, m, p_triangle, seed=seed)
+
+
 def kleinberg_grid(n, r=2, p=1, q=1, seed=SEED):
     """Generate a Kleinberg navigable small-world graph on a 2-D grid.
 

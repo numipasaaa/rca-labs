@@ -63,3 +63,11 @@ from netsci.viz.models_hubs import (
     plot_robustness_sweep,
     plot_ultra_small,
 )
+
+# Lab 05 — Communities
+from netsci.viz.communities import (
+    plot_algorithm_comparison,
+    plot_community_concept,
+    plot_louvain_steps,
+    plot_louvain_vs_lpa,
+)

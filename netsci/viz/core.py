@@ -370,11 +370,11 @@ def plot_adjacency(
 
 
 # ---------------------------------------------------------------------------
-# Interactive PyVis visualization
+# Interactive Plotly visualization
 # ---------------------------------------------------------------------------
 
 # Default color palette for community coloring (10 distinct colors).
-_PYVIS_COLORS = [
+_INTERACTIVE_COLORS = [
     "#4878CF",
     "#6ACC65",
     "#D65F5F",
@@ -388,8 +388,8 @@ _PYVIS_COLORS = [
 ]
 
 
-def draw_pyvis(G, node_color=None, title=None, height="500px", filename="graph.html"):
-    """Render an interactive graph with PyVis and display inline.
+def draw_pyvis(G, node_color=None, title=None, height="500px", filename=None):
+    """Render an interactive graph with Plotly (zoom, pan, hover).
 
     Parameters
     ----------
@@ -401,48 +401,85 @@ def draw_pyvis(G, node_color=None, title=None, height="500px", filename="graph.h
         A *list* of color strings in ``G.nodes()`` order also works.
         When values are integers they are mapped to a 10-color palette.
     title : str, optional
-        HTML heading displayed above the graph.
-    height : str, default "500px"
-        CSS height of the canvas.
-    filename : str, default "graph.html"
-        Path for the generated HTML file.
+        Title displayed above the graph.
+    height : str or int, default "500px"
+        Height of the figure (e.g. ``"500px"`` or ``500``).
+    filename : str, optional
+        Ignored (kept for backward compatibility with old PyVis calls).
     """
-    from IPython.display import HTML, display
-    from pyvis.network import Network
+    import plotly.graph_objects as go
 
-    net = Network(height=height, width="100%", notebook=True, cdn_resources="in_line")
-    if title:
-        net.heading = title
+    pos = nx.spring_layout(G, seed=SEED)
+
+    # Parse height to pixels
+    if isinstance(height, str):
+        h_px = int(height.replace("px", ""))
+    else:
+        h_px = int(height)
 
     # Build color mapping ------------------------------------------------
     nodes = list(G.nodes())
     if node_color is None:
-        color_map = {n: _PYVIS_COLORS[0] for n in nodes}
+        color_map = {n: _INTERACTIVE_COLORS[0] for n in nodes}
     elif isinstance(node_color, dict):
         color_map = {}
         for n in nodes:
             c = node_color.get(n, 0)
             if isinstance(c, (int, np.integer)):
-                color_map[n] = _PYVIS_COLORS[int(c) % len(_PYVIS_COLORS)]
+                color_map[n] = _INTERACTIVE_COLORS[int(c) % len(_INTERACTIVE_COLORS)]
             else:
                 color_map[n] = c
     else:
-        # list / array — same order as G.nodes()
         color_map = {
             n: (
-                _PYVIS_COLORS[int(c) % len(_PYVIS_COLORS)]
+                _INTERACTIVE_COLORS[int(c) % len(_INTERACTIVE_COLORS)]
                 if isinstance(c, (int, np.integer))
                 else c
             )
             for n, c in zip(nodes, node_color)
         }
 
-    # Add nodes and edges ------------------------------------------------
-    for n in nodes:
-        net.add_node(str(n), label=str(n), color=color_map[n])
+    # Edge traces --------------------------------------------------------
+    edge_x, edge_y = [], []
     for u, v in G.edges():
-        net.add_edge(str(u), str(v))
+        x0, y0 = pos[u]
+        x1, y1 = pos[v]
+        edge_x.extend([x0, x1, None])
+        edge_y.extend([y0, y1, None])
 
-    # Save and display ---------------------------------------------------
-    net.save_graph(filename)
-    display(HTML(filename))
+    edge_trace = go.Scatter(
+        x=edge_x, y=edge_y, mode="lines",
+        line=dict(width=0.5, color="#aaaaaa"),
+        hoverinfo="none",
+    )
+
+    # Node traces --------------------------------------------------------
+    node_x = [pos[n][0] for n in nodes]
+    node_y = [pos[n][1] for n in nodes]
+    node_colors = [color_map[n] for n in nodes]
+    node_labels = [str(n) for n in nodes]
+
+    node_trace = go.Scatter(
+        x=node_x, y=node_y, mode="markers+text",
+        marker=dict(size=10, color=node_colors, line=dict(width=1, color="white")),
+        text=node_labels,
+        textposition="top center",
+        textfont=dict(size=8),
+        hovertext=node_labels,
+        hoverinfo="text",
+    )
+
+    # Layout & display ---------------------------------------------------
+    fig = go.Figure(
+        data=[edge_trace, node_trace],
+        layout=go.Layout(
+            title=dict(text=title or "", font=dict(size=14)),
+            showlegend=False,
+            height=h_px,
+            margin=dict(l=10, r=10, t=40, b=10),
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            plot_bgcolor="white",
+        ),
+    )
+    fig.show()
